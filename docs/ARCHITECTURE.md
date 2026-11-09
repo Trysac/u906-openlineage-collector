@@ -1,29 +1,45 @@
 # Architecture
 
-## Purpose
+## Overview
 
-`trysac-openlineage-collector` is a small, dependency-free Python library: Emit and receive OpenLineage run events, validate them against the 2-0-2 spec and query upstream and downstream lineage of datasets and jobs
+`trysac-openlineage-collector` provides in-memory lineage tracking and OpenLineage 2-0-2 event processing without requiring external databases or server infrastructure.
 
-## Shape
-
-```text
-caller code --> openlineage_collector (public API in __init__.py)
-                    |
-                    +-- pure functions, no I/O, no global state
+```
++-----------------------+
+|       Producers       |
+| (HttpEmitter / tasks) |
++-----------+-----------+
+            |
+            v  HTTP POST /api/v1/lineage
++-----------------------+
+|       WSGI App        |
+|    (make_wsgi_app)    |
++-----------+-----------+
+            |
+            v  ingest(event)
++-----------------------+
+|     LineageGraph      | <--- upstream() / downstream()
+|  In-memory BFS Graph  |
++-----------------------+
 ```
 
-- **Public API**: the names listed in `__all__` of `src/openlineage_collector/__init__.py`. Anything else is
-  internal and may change without a major version.
-- **Errors**: invalid input raises built-in exceptions (`ValueError`, `TypeError`) with a clear
-  message; the library never prints or exits.
-- **Side effects**: none. If a feature needs I/O, isolate it in its own module behind a small
-  interface and record the choice in an ADR.
+## Components
 
-## Quality contract
+1. **Event Builder & Validator (`make_run_event`, `validate_event`)**
+   - Implements OpenLineage 2-0-2 RunEvent rules.
+   - Enforces RFC 3339 date-time formats, UUID v4-formatted runIds, and URI validation.
+   - Reports specific failing document paths on invalid events.
 
-`scripts/check.py` is the single definition of the gates; `fabrica.json` tells the factory and CI
-how to run it. See [TESTING.md](TESTING.md).
+2. **In-Memory Lineage Graph (`LineageGraph`)**
+   - Tracks job runs using terminal state machines (`START`/`RUNNING` -> `COMPLETE`/`FAIL`/`ABORT`).
+   - Edges are created only when a run completes successfully.
+   - BFS upstream and downstream queries support cycle detection and configurable depth (1-100).
+   - Bounded event count ensures memory safety in long-running test suites.
 
-## Decisions
+3. **WSGI Endpoint (`make_wsgi_app`)**
+   - Compliant WSGI callable handling `POST /api/v1/lineage` and `GET /api/v1/lineage/(upstream|downstream)`.
+   - Enforces payload size limits (default 1MB).
 
-Architecture decisions are recorded in [decisions/](decisions/) as numbered ADRs.
+4. **HTTP Emitter (`HttpEmitter`)**
+   - Encapsulates HTTP transport with pluggable `Transport` protocol (defaults to `UrllibTransport`).
+   - Safely injects bearer authentication headers without exposing tokens in logs or error messages.

@@ -9,4 +9,5 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Add OpenLineage 2-0-2 event builder, validator, in-memory lineage graph, WSGI collector app, and HTTP emitter.
 - Initial project structure from the factory utility template.

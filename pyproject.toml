@@ -39,6 +39,7 @@ include = ["src", "tests", "docs", "README.md", "LICENSE", "CHANGELOG.md", "SECU
 [dependency-groups]
 dev = [
     "bandit>=1.9.4",
+    "jsonschema>=4,<5",
     "mypy>=2.4.1",
     "pip-audit>=2.10.1",
     "pytest>=9.2.0",
