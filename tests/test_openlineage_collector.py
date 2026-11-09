@@ -652,7 +652,9 @@ def test_openlineage_conformance_schema() -> None:
         pytest.skip("jsonschema not installed")
 
     schema_doc = json.loads(schema_path.read_text(encoding="utf-8"))
-    validator = jsonschema.Draft202012Validator(schema_doc)
+    format_checker = getattr(jsonschema, "FormatChecker", None)
+    checker = format_checker() if format_checker is not None else None
+    validator = jsonschema.Draft202012Validator(schema_doc, format_checker=checker)
 
     # 1. Validate make_run_event output against official schema
     event = make_run_event(
