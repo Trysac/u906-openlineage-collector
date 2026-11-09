@@ -1,0 +1,11 @@
+# Factory-owned OSV-Scanner exceptions (agents must not edit this file). Each one names its reason and expires, so
+# the osv gate fails again on its own once the date passes and the exception has to be reviewed.
+
+[[IgnoredVulns]]
+# filelock < 4.2.1, ReadWriteLock symlink or journal planting by a local user. Reaches this repository only as a
+# development tool dependency (pip-audit -> cachecontrol[filecache] -> filelock) and only on Python 3.10, where no
+# fixed release exists (filelock 4.2.x requires Python 3.11). Never shipped in the package. Accepted by Miguel on
+# 2026-11-08 (factory LESSONS L61).
+id = "GHSA-v4x8-3wr5-3wq8"
+ignoreUntil = 2027-01-31T00:00:00Z
+reason = "dev-only tool dependency on Python 3.10, no fixed release for 3.10; accepted until 2027-01-31 (factory LESSONS L61)"

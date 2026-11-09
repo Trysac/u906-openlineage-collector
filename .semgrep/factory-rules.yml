@@ -1,0 +1,74 @@
+# Semgrep CE rules owned by the factory (MIT, like this repository). The semgrep gate in scripts/check.py runs
+# only this file; Semgrep-maintained registry rules are never used (their license forbids distribution and
+# service use). Every rule is ERROR: a match fails the gate. Factory-owned file: agents must not edit it.
+rules:
+  - id: fabrica.python.subprocess-shell-true
+    languages: [python]
+    severity: ERROR
+    message: A subprocess started with shell=True runs its command through a shell (command injection). Pass an argument list and keep shell=False.
+    pattern-either:
+      - pattern: subprocess.$FUNC(..., shell=True, ...)
+      - pattern: asyncio.create_subprocess_shell(...)
+  - id: fabrica.python.os-system-dynamic
+    languages: [python]
+    severity: ERROR
+    message: os.system and os.popen with a non-literal command allow command injection. Use subprocess.run with an argument list.
+    patterns:
+      - pattern-either:
+          - pattern: os.system($CMD)
+          - pattern: os.popen($CMD, ...)
+      - pattern-not: os.system("...")
+      - pattern-not: os.popen("...", ...)
+  - id: fabrica.python.unsafe-deserialization
+    languages: [python]
+    severity: ERROR
+    message: pickle, marshal and shelve execute code while loading untrusted data. Use json or a schema-checked format.
+    pattern-either:
+      - pattern: pickle.loads(...)
+      - pattern: pickle.load(...)
+      - pattern: pickle.Unpickler(...)
+      - pattern: marshal.loads(...)
+      - pattern: marshal.load(...)
+      - pattern: shelve.open(...)
+  - id: fabrica.python.yaml-unsafe-load
+    languages: [python]
+    severity: ERROR
+    message: yaml.load without SafeLoader can build arbitrary Python objects. Use yaml.safe_load.
+    pattern-either:
+      - patterns:
+          - pattern: yaml.load(...)
+          - pattern-not: yaml.load(..., Loader=yaml.SafeLoader, ...)
+          - pattern-not: yaml.load(..., Loader=yaml.CSafeLoader, ...)
+          - pattern-not: yaml.load(..., Loader=SafeLoader, ...)
+          - pattern-not: yaml.load(..., Loader=CSafeLoader, ...)
+      - pattern: yaml.unsafe_load(...)
+      - pattern: yaml.full_load(...)
+  - id: fabrica.python.eval-dynamic
+    languages: [python]
+    severity: ERROR
+    message: eval( and exec( on non-literal input run arbitrary code. Parse the input instead (ast.literal_eval, json).
+    patterns:
+      - pattern-either:
+          - pattern: eval($X, ...)
+          - pattern: exec($X, ...)
+      - pattern-not: eval("...", ...)
+      - pattern-not: exec("...", ...)
+  - id: fabrica.python.tls-verification-disabled
+    languages: [python]
+    severity: ERROR
+    message: TLS certificate verification is disabled (verify=False or an unverified context), so any server can impersonate the real one.
+    pattern-either:
+      - pattern: requests.$FUNC(..., verify=False, ...)
+      - pattern: httpx.$FUNC(..., verify=False, ...)
+      - pattern: ssl._create_unverified_context(...)
+      - pattern: $CTX.verify_mode = ssl.CERT_NONE
+  - id: fabrica.python.hardcoded-secret
+    languages: [python]
+    severity: ERROR
+    message: A credential (private key, AKIA access key, GitHub, Slack or Stripe token) is hard-coded in the source. Read it from the environment.
+    pattern-either:
+      - pattern-regex: -----BEGIN (RSA |EC |DSA |OPENSSH |ENCRYPTED )?PRIVATE KEY-----
+      - pattern-regex: \b(AKIA|ASIA)[0-9A-Z]{16}\b
+      - pattern-regex: \bgh[pousr]_[A-Za-z0-9]{36}\b
+      - pattern-regex: \bxox[baprs]-[A-Za-z0-9-]{10,}\b
+      - pattern-regex: \bsk_live_[A-Za-z0-9]{24,}\b
