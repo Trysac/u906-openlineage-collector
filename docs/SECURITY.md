@@ -1,22 +1,18 @@
 # Security notes
 
-## Threat model
+## Threat Model
 
-`trysac-openlineage-collector` is a pure library without I/O. The main risks are:
+### Defended
 
-- **Supply chain**: a compromised dependency or CI action. Mitigation: no runtime dependencies,
-  Dependabot weekly updates, actions pinned to major versions, minimal workflow permissions.
-- **Leaked secrets**: tokens committed by mistake. Mitigation: `gitleaks` runs in the local gates
-  and in CI; `.env` files are git-ignored.
-- **Insecure code**: shell injection, weak hashes, unsafe deserialization. Mitigation: Ruff's
-  `S` rules in lint and a `security` gate (Bandit, high severity fails, `# nosec` ignored); fix the
-  code instead of silencing it.
-- **Untrusted input**: callers may pass hostile strings. Mitigation: validate input and fail with
-  explicit exceptions; never `eval`, `exec` or deserialize untrusted data.
+- **Untrusted Input**: The validator enforces strictly typed schemas for OpenLineage 2-0-2 objects. Recursion depth is capped at 64, and body size is limited to `max_body_bytes` to mitigate DoS via large JSON payloads.
+- **Leaked Secrets**: API keys (if used in `HttpEmitter`) are passed as headers and are not logged or captured in `LineageError` messages. 
+- **Code Safety**: The library uses no external dependencies. The codebase is restricted by strict Mypy types and Ruff linting rules.
 
-## Publishing
+### Not Defended
 
-Releases are published to PyPI with trusted publishing (OIDC) when available, never with a
-long-lived token stored in the repository.
+- **Authorization**: The WSGI application does not implement authentication; any caller reaching the endpoint can ingest events or query the graph.
+- **Persistence**: Data is held in memory and is lost on restart; no secure storage mechanisms are implemented.
 
-To report a vulnerability, see [SECURITY.md](../SECURITY.md).
+## Limits
+
+Validation rejects payloads exceeding 64 levels of nested JSON or the configured `max_body_bytes` (default 1MB).

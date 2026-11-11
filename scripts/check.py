@@ -250,7 +250,15 @@ def osv_gate() -> int:
         print(f"osv-scanner: skipped: no {OSV_LOCKFILE} (run uv lock)")
         return 0
     argv = [exe, "scan", "source", "--format", "json", f"--lockfile={lock}"]
-    res = subprocess.run(argv, cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
+    res = subprocess.run(
+        argv,
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
     if res.returncode in (0, OSV_NO_PACKAGES):
         print(f"osv-scanner: no known vulnerabilities in {OSV_LOCKFILE}")
         return 0
